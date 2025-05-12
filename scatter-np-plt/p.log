@@ -1,0 +1,9 @@
+Script started on 2025-05-12 21:47:50+03:00 [TERM="screen" TTY="/dev/pts/1" COLUMNS="150" LINES="37"]
+[?2004hgitonga@Delton:~/Develop/Repos/Public/sanaa/scatter-np-plt$ cpsc sc_np_plt.py -f ../data/x.csv;exit
+[?2004l[H[JReading file: ../data/x.csv
+Loaded 100 rows
+Creating scatter plot...
+Plot saved to: /home/gitonga/Develop/Repos/Public/sanaa/scatter-np-plt/scatter_plot.svg
+exit
+
+Script done on 2025-05-12 21:48:10+03:00 [COMMAND_EXIT_CODE="0"]
