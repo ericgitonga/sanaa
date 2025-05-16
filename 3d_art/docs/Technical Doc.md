@@ -11,6 +11,7 @@ The 3D File Visualizer project is structured around these main components:
 3. **Data Processing**: Converts files to numerical matrices
 4. **Visualization Generation**: Creates 3D representations
 5. **Animation Export**: Produces the final video
+6. **Audio Synchronization**: Combines animation with audio tracks
 
 ## Component Details
 
@@ -28,7 +29,10 @@ def check_and_install_dependencies():
     required_packages = [
         'numpy>=1.19.0',
         'matplotlib>=3.3.0',
-        # ...
+        'imageio>=2.9.0',
+        'Pillow>=8.0.0',
+        'scipy>=1.5.0',
+        'moviepy>=1.0.3'  # Added for audio synchronization
     ]
     
     # Checks installed packages
@@ -86,7 +90,8 @@ Processing strategies:
 The visualization system uses matplotlib's 3D capabilities to create surface plots:
 
 ```python
-def create_3d_visualization(file_list, output_video="file_visualization.mp4", max_files=100):
+def create_3d_visualization(file_list, output_video="file_visualization.mp4", max_files=100, 
+                           audio_file=None, fps=15, duration=None):
     # ... initialization ...
     
     # Animation update function
@@ -100,6 +105,7 @@ Key visualization features:
 - Opacity and Z-offset create a sense of depth and movement
 - Camera rotation provides multiple angles of the visualization
 - Surface coloring uses the viridis colormap for visual appeal
+- Duration and speed can be customized with fps and duration parameters
 
 ### Animation Export
 
@@ -109,14 +115,14 @@ The animation export component leverages matplotlib's animation module and FFmpe
 # Create animation
 anim = animation.FuncAnimation(
     fig, update_plot,
-    frames=len(data_matrices),
+    frames=num_frames,
     fargs=(data_matrices, ax),
-    interval=200,
+    interval=1000/fps,  # in milliseconds
     blit=False
 )
 
 # Save as video
-writer = animation.FFMpegWriter(fps=15, bitrate=5000)
+writer = animation.FFMpegWriter(fps=fps, bitrate=5000)
 anim.save(output_video, writer=writer)
 ```
 
@@ -124,6 +130,37 @@ The export process:
 1. Creates a frame-by-frame animation through the data matrices
 2. Configures parameters like FPS and bitrate for video quality
 3. Uses FFmpeg externally to encode the animation as an MP4 video
+
+### Audio Synchronization
+
+The audio synchronization system uses MoviePy to combine the visualization with an audio track:
+
+```python
+# Combine video with audio
+video_clip = VideoFileClip(temp_video)
+audio_clip = AudioFileClip(audio_file)
+
+# Adjust audio duration if needed
+if audio_clip.duration != video_clip.duration:
+    if audio_clip.duration > video_clip.duration:
+        print(f"Trimming audio to match video duration ({video_clip.duration:.2f}s)")
+        audio_clip = audio_clip.subclip(0, video_clip.duration)
+    else:
+        print(f"Audio shorter than video. Audio will end at {audio_clip.duration:.2f}s")
+
+# Set the audio for the video clip
+final_clip = video_clip.set_audio(audio_clip)
+
+# Write the final video with audio
+final_clip.write_videofile(final_output, codec='libx264', audio_codec='aac')
+```
+
+Key audio synchronization features:
+- Audio file validation with format checking
+- Automatic duration matching between video and audio
+- Temporary file handling for the two-step process
+- Error handling with graceful fallback to non-audio version
+- Support for multiple audio formats (MP3, WAV, OGG, AAC, M4A)
 
 ## Performance Optimization
 
@@ -134,6 +171,8 @@ Several optimizations ensure the tool remains performant with large directories:
 3. **Progressive loading**: Files are processed one at a time to avoid memory spikes
 4. **Stride parameters**: Surface plots use appropriate stride values to reduce polygon count
 5. **Frame interval tuning**: Animation frame rate is balanced for smooth playback and processing time
+6. **Duration control**: Animation length can be set explicitly to manage memory usage
+7. **Temporary file handling**: Audio synchronization uses disk storage to avoid memory bottlenecks
 
 ## Error Handling
 
@@ -143,6 +182,9 @@ Robust error handling ensures the tool operates reliably:
 2. **File access errors**: Gracefully handles permission issues when scanning directories
 3. **Processing fallbacks**: When a file cannot be processed in the preferred way, falls back to alternative methods
 4. **Import safeguards**: Verifies all imports succeed after dependency installation
+5. **Audio file validation**: Checks audio file format and readability before processing
+6. **FFmpeg verification**: Ensures FFmpeg is available before starting the visualization
+7. **Graceful degradation**: Falls back to non-audio version if audio processing fails
 
 ## Command-line Interface
 
@@ -150,16 +192,29 @@ The CLI is implemented using `argparse` for consistency and user-friendliness:
 
 ```python
 def main():
-    parser = argparse.ArgumentParser(description='Create 3D visualization of files in a directory')
-    parser.add_argument('directory', type=str, help='Directory to scan recursively')
-    parser.add_argument('--output', type=str, default='file_visualization.mp4', help='Output video filename')
-    parser.add_argument('--max-files', type=int, default=100, help='Maximum number of files to process')
+    parser = argparse.ArgumentParser(
+        description='Create 3D visualization of files in a directory',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument('directory', type=str, 
+                        help='Directory to scan recursively')
+    parser.add_argument('--output', type=str, default='file_visualization.mp4', 
+                        help='Output video filename')
+    parser.add_argument('--max-files', type=int, default=100, 
+                        help='Maximum number of files to process')
+    parser.add_argument('--audio', type=str, default=None,
+                        help='Path to MP3 audio file to synchronize with the animation')
+    parser.add_argument('--duration', type=float, default=None,
+                        help='Duration of the animation in seconds (default: based on audio or files)')
+    parser.add_argument('--fps', type=int, default=15,
+                        help='Frames per second for the video output')
 ```
 
 This provides:
 - Clear help text and usage instructions
 - Type validation for parameters
 - Default values for optional parameters
+- New audio-related command-line options
 
 ## Technical Limitations
 
@@ -167,6 +222,8 @@ This provides:
 2. **Processing time**: Complex visualizations may take several minutes to generate
 3. **File type limitations**: Some specialized file formats may not produce meaningful visualizations
 4. **FFmpeg dependency**: External dependency on FFmpeg for video encoding
+5. **Audio format support**: Limited to formats supported by MoviePy (MP3, WAV, OGG, AAC, M4A)
+6. **Synchronization accuracy**: Audio/video sync is limited by the frame rate (fps) precision
 
 ## Extension Points
 
@@ -176,85 +233,92 @@ The codebase is designed with several extension points:
 2. **Alternative visualizations**: Different 3D representation strategies
 3. **Output formats**: Support for formats beyond MP4
 4. **Filtering options**: Selective processing of certain file types or patterns
+5. **Audio effects**: Potential for audio visualization or beat detection
+6. **Audio-driven animation**: Future enhancement to make visualization react to audio features
 
-## Implementation Notes
+## Implementation Details
 
-### Data Normalization
+### Animation Duration Determination
 
-File data is normalized to create consistent visualizations:
+The system uses a hierarchical approach to determine animation duration:
 
 ```python
-# Set consistent limits for the plot
-max_x = max([matrix.shape[0] for matrix in data_matrices])
-max_y = max([matrix.shape[1] for matrix in data_matrices])
-ax.set_xlim(0, max_x)
-ax.set_ylim(0, max_y)
-ax.set_zlim(0, max_z_height)
+# Determine duration if audio file is provided
+audio_duration = None
+if audio_file:
+    try:
+        audio_clip = AudioFileClip(audio_file)
+        audio_duration = audio_clip.duration
+        
+        if duration is None:
+            duration = audio_duration
+    except Exception as e:
+        print(f"Warning: Could not read audio file: {e}")
+        audio_file = None
+
+# If duration is not set from audio, estimate it based on number of files
+if duration is None:
+    # Default to about 10 seconds for small collections, up to 60 seconds for larger ones
+    duration = min(10 + (len(file_list) / 10), 60)
 ```
 
 This ensures:
-- Consistent scale across different file visualizations
-- Proper relative sizing of visual elements
-- Smooth transitions between frames
+- Audio duration is prioritized when an audio file is provided
+- User-specified duration overrides the audio duration if both are present
+- An appropriate default duration is calculated based on the number of files
+- All timing parameters are coordinated for smooth animation
 
-### Animation Techniques
+### File Progression Logic
 
-Several techniques create the distinctive flowing effect:
+The file visualization uses a frame-to-file index mapping to ensure even distribution:
 
 ```python
+# Calculate which file to display based on frame number and total duration
+file_idx = min(int((frame_num / num_frames) * len(data_matrices)), len(data_matrices) - 1)
+
 # Take a slice of the data matrices to create a flowing effect
-start_idx = max(0, frame_num - 5)
-end_idx = min(len(data_matrices), frame_num + 1)
-
-# ... and later...
-
-# Add a fade effect for older matrices
-alpha = 0.2 + 0.8 * (i / (end_idx - start_idx))
+window_size = min(6, len(data_matrices))
+start_idx = max(0, file_idx - (window_size - 1))
+end_idx = min(len(data_matrices), start_idx + window_size)
 ```
 
 This implementation:
+- Ensures files are distributed evenly across the animation duration
 - Shows multiple files simultaneously with varying opacity
 - Creates a sense of movement through the directory
-- Provides visual continuity between frames
+- Adjusts automatically to different animation durations and file counts
 
-### Camera Control
+### Audio Processing Two-Step Flow
 
-Dynamic camera movement enhances the visualization:
+The audio synchronization process uses a two-step approach:
 
+1. First, save the silent animation to a temporary file:
 ```python
-# Rotate view angle for dynamic effect
-ax.view_init(elev=30, azim=frame_num % 360)
+# Save the animation without audio
+writer = animation.FFMpegWriter(fps=fps, bitrate=5000)
+anim.save(temp_video, writer=writer)
 ```
 
-This provides:
-- A 360° view of the visualization over the course of the animation
-- Enhanced perception of 3D structure
-- Greater visual interest through continuous movement
+2. Then, combine with audio using MoviePy:
+```python
+# Combine video with audio
+video_clip = VideoFileClip(temp_video)
+audio_clip = AudioFileClip(audio_file)
+final_clip = video_clip.set_audio(audio_clip)
+final_clip.write_videofile(final_output, codec='libx264', audio_codec='aac')
+```
+
+This approach:
+- Separates concerns between animation rendering and audio processing
+- Allows for precise control over both aspects
+- Uses disk storage to avoid memory limitations
+- Creates a clean pipeline with error handling at each step
 
 ## Development Environment
 
-### Setup Requirements
+### Requirements
 
 - Python 3.6+
-- Development packages: `numpy`, `matplotlib`, `imageio`, `Pillow`, `scipy`
-- Code quality tools: `ruff`, `black`, `pylint` (optional)
+- Development packages: `numpy`, `matplotlib`, `imageio`, `Pillow`, `scipy`, `moviepy`
 - FFmpeg installation
-
-### Testing Approach
-
-Testing this application involves:
-
-1. Dependency installation verification
-2. Directory scanning with various structures
-3. Processing of different file types
-4. Video generation quality assessment
-
-## Future Enhancements
-
-Potential enhancements include:
-
-1. **Parallel processing**: Multi-threaded file processing for faster execution
-2. **Interactive mode**: Real-time interactive 3D visualization without video export
-3. **Directory structure representation**: Visualize folder hierarchy in addition to files
-4. **Metadata visualization**: Incorporate file metadata like creation date, permissions into visualization
-5. **Classification grouping**: Group similar file types visually in the representation
+- Audio files in supported formats for testing

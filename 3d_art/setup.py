@@ -16,6 +16,7 @@ Dependencies:
     - imageio (>=2.9.0)
     - Pillow (>=8.0.0)
     - scipy (>=1.5.0)
+    - moviepy (>=1.0.3)
     - FFmpeg (external dependency, must be installed separately)
 
 Author: Eric Gitonga
@@ -44,7 +45,14 @@ def check_and_install_dependencies():
         bool: True if all dependencies are satisfied, False otherwise
     """
     # List of required packages with version constraints
-    required_packages = ["numpy>=1.19.0", "matplotlib>=3.3.0", "imageio>=2.9.0", "Pillow>=8.0.0", "scipy>=1.5.0"]
+    required_packages = [
+        "numpy>=1.19.0",
+        "matplotlib>=3.3.0",
+        "imageio>=2.9.0",
+        "Pillow>=8.0.0",
+        "scipy>=1.5.0",
+        "moviepy>=1.0.3",  # Added for audio synchronization
+    ]
 
     print("Checking and installing dependencies...")
 
@@ -156,7 +164,14 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.6",
-    install_requires=["numpy>=1.19.0", "matplotlib>=3.3.0", "imageio>=2.9.0", "Pillow>=8.0.0", "scipy>=1.5.0"],
+    install_requires=[
+        "numpy>=1.19.0",
+        "matplotlib>=3.3.0",
+        "imageio>=2.9.0",
+        "Pillow>=8.0.0",
+        "scipy>=1.5.0",
+        "moviepy>=1.0.3",
+    ],
     entry_points={
         "console_scripts": [
             "3d-visualizer=3d_art:main",

@@ -32,6 +32,15 @@ python 3d_art.py /path/to/your/directory --output custom_name.mp4
 
 # Limit number of files processed
 python 3d_art.py /path/to/your/directory --max-files 50
+
+# Add an audio track to the visualization
+python 3d_art.py /path/to/your/directory --audio your_music.mp3
+
+# Specify a custom duration for the video
+python 3d_art.py /path/to/your/directory --duration 30.0
+
+# Set custom frames per second
+python 3d_art.py /path/to/your/directory --fps 30
 ```
 
 ## Troubleshooting
