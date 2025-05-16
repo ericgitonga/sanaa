@@ -1,94 +1,41 @@
-# 3d_art.py
+#!/usr/bin/env python3
+"""
+3D File Visualizer
+
+This script recursively traverses a directory structure and converts files into
+a flowing 3D visualization saved as a video.
+
+Author: Eric Gitonga
+Copyright: 2025 Eric Gitonga - May 16, 2025
+License: MIT
+Version: 0.1.0
+"""
+
 import os
 import sys
-import subprocess
-import pkg_resources
+import argparse
 
-
-def check_and_install_dependencies():
-    """Check for required dependencies and install/upgrade as needed."""
-    # List of required packages with version constraints
-    required_packages = ["numpy>=1.19.0", "matplotlib>=3.3.0", "imageio>=2.9.0", "Pillow>=8.0.0", "scipy>=1.5.0"]
-
-    print("Checking and installing dependencies...")
-
-    # Check existing packages
-    installed = {pkg.key: pkg.version for pkg in pkg_resources.working_set}
-    missing = []
-    upgrade = []
-
-    for package in required_packages:
-        # Parse package name and version constraint
-        if ">=" in package:
-            name, version = package.split(">=")
-            name = name.strip()
-            min_version = version.strip()
-
-            if name in installed:
-                current_version = installed[name]
-                # Compare versions to see if upgrade needed
-                try:
-                    if pkg_resources.parse_version(current_version) < pkg_resources.parse_version(min_version):
-                        print(f"Package {name} needs upgrade: {current_version} -> {min_version}+")
-                        upgrade.append(package)
-                    else:
-                        print(f"Package {name} is up to date ({current_version})")
-                except Exception as e:
-                    print(f"Error comparing versions for {name}: {e}")
-                    upgrade.append(package)  # Add to upgrade list to be safe
-            else:
-                print(f"Package {name} not found, will install {package}")
-                missing.append(package)
-        else:
-            name = package
-            if name not in installed:
-                print(f"Package {name} not found, will install")
-                missing.append(package)
-            else:
-                print(f"Package {name} is installed ({installed[name]})")
-
-    # Install missing packages
-    if missing:
-        print(f"Installing missing packages: {', '.join(missing)}")
-        try:
-            subprocess.check_call([sys.executable, "-m", "pip", "install"] + missing)
-        except subprocess.CalledProcessError as e:
-            print(f"Error installing packages: {e}")
-            print("You may need to run this script with sudo or use a virtual environment.")
-            sys.exit(1)
-
-    # Upgrade packages
-    if upgrade:
-        print(f"Upgrading packages: {', '.join(upgrade)}")
-        try:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade"] + upgrade)
-        except subprocess.CalledProcessError as e:
-            print(f"Error upgrading packages: {e}")
-            print("You may need to run this script with sudo or use a virtual environment.")
-            sys.exit(1)
-
-    if not missing and not upgrade:
-        print("All dependencies are already satisfied!")
-    else:
-        print("All dependencies are now installed and up to date!")
-
-    # Check for FFmpeg
-    try:
-        subprocess.run(["ffmpeg", "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-        print("FFmpeg is installed and available.")
-    except (subprocess.SubprocessError, FileNotFoundError):
-        print("WARNING: FFmpeg is not installed or not in PATH. This is required for video output.")
-        print("Please install FFmpeg from https://ffmpeg.org/download.html or use your system's package manager.")
-        print("For example, on Ubuntu/Debian: sudo apt-get install ffmpeg")
-        print("On macOS with Homebrew: brew install ffmpeg")
-        print("On Windows: Download from https://ffmpeg.org/download.html#build-windows")
-        if input("Continue anyway? (y/n): ").lower() != "y":
-            sys.exit(1)
-
-
-# First, run the dependency check before importing any other modules
+# First, make sure dependencies are available
 print("Checking dependencies before running...")
-check_and_install_dependencies()
+try:
+    from dependencies import check_and_install_dependencies
+
+    check_and_install_dependencies()
+except ImportError:
+    # If dependencies.py is not in the path, try to import it directly
+    try:
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "dependencies", os.path.join(os.path.dirname(__file__), "dependencies.py")
+        )
+        dependencies = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(dependencies)
+        dependencies.check_and_install_dependencies()
+    except Exception as e:
+        print(f"Error importing dependencies module: {e}")
+        print("Please ensure dependencies.py is available in the same directory.")
+        sys.exit(1)
 
 # Only import these modules after ensuring they're installed
 try:
@@ -109,7 +56,17 @@ except ImportError as e:
 def process_file_to_data(file_path):
     """
     Convert a file to numerical data that can be visualized.
-    This is a placeholder - modify based on your specific file types.
+
+    This function processes different file types:
+    - Images are converted to grayscale arrays
+    - Text/CSV files are parsed as numerical data when possible
+    - Other files generate data based on file metadata
+
+    Args:
+        file_path (str): Path to the file to process
+
+    Returns:
+        numpy.ndarray: A 2D numerical array representing the file
     """
     ext = os.path.splitext(file_path)[1].lower()
 
@@ -149,7 +106,15 @@ def process_file_to_data(file_path):
 
 
 def scan_directory(directory):
-    """Recursively scan a directory and gather data from all files."""
+    """
+    Recursively scan a directory and gather data from all files.
+
+    Args:
+        directory (str): Path to the directory to scan
+
+    Returns:
+        list: List of full paths to all files found
+    """
     all_files = []
     total_size = 0
 
@@ -164,7 +129,17 @@ def scan_directory(directory):
 
 
 def create_3d_visualization(file_list, output_video="file_visualization.mp4", max_files=100):
-    """Create a 3D visualization of the files and save as video."""
+    """
+    Create a 3D visualization of the files and save as video.
+
+    Args:
+        file_list (list): List of file paths to visualize
+        output_video (str): Path for the output video file
+        max_files (int): Maximum number of files to process
+
+    Returns:
+        str: Path to the created video file
+    """
     # Limit the number of files to process to avoid excessive computation
     if len(file_list) > max_files:
         print(f"Limiting to {max_files} files out of {len(file_list)}")
@@ -177,10 +152,14 @@ def create_3d_visualization(file_list, output_video="file_visualization.mp4", ma
     # Process the files and collect data
     data_matrices = []
     max_z_height = 0
-    for file_path in file_list:
+
+    print("Processing files...")
+    for i, file_path in enumerate(file_list):
+        print(f"Processing file {i+1}/{len(file_list)}: {os.path.basename(file_path)}", end="\r")
         matrix = process_file_to_data(file_path)
         data_matrices.append(matrix)
         max_z_height = max(max_z_height, np.max(matrix))
+    print("\nFile processing complete.")
 
     # Set up the plot
     ax.set_xlabel("X")
@@ -233,30 +212,46 @@ def create_3d_visualization(file_list, output_video="file_visualization.mp4", ma
         return [surf]
 
     # Create animation
+    print("Generating animation...")
     anim = animation.FuncAnimation(
         fig, update_plot, frames=len(data_matrices), fargs=(data_matrices, ax), interval=200, blit=False
     )
 
     # Save as video
     print(f"Saving animation to {output_video}...")
-    writer = animation.FFMpegWriter(fps=15, bitrate=5000)
-    anim.save(output_video, writer=writer)
-    print(f"Video saved successfully to {output_video}")
+    try:
+        writer = animation.FFMpegWriter(fps=15, bitrate=5000)
+        anim.save(output_video, writer=writer)
+        print(f"Video saved successfully to {output_video}")
+    except Exception as e:
+        print(f"Error saving video: {e}")
+        print("Please ensure FFmpeg is properly installed and in your PATH.")
+        return None
 
     plt.close(fig)
     return output_video
 
 
 def main():
-    """Main entry point for the program."""
-    import argparse
+    """
+    Main entry point for the program.
 
-    parser = argparse.ArgumentParser(description="Create 3D visualization of files in a directory")
+    Parses command line arguments and runs the visualization process.
+    """
+    parser = argparse.ArgumentParser(
+        description="Create 3D visualization of files in a directory",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument("directory", type=str, help="Directory to scan recursively")
     parser.add_argument("--output", type=str, default="file_visualization.mp4", help="Output video filename")
     parser.add_argument("--max-files", type=int, default=100, help="Maximum number of files to process")
 
     args = parser.parse_args()
+
+    # Validate directory
+    if not os.path.isdir(args.directory):
+        print(f"Error: {args.directory} is not a valid directory")
+        return 1
 
     # Scan directory and get files
     file_list = scan_directory(args.directory)
@@ -264,10 +259,16 @@ def main():
     # Create visualization
     if file_list:
         video_path = create_3d_visualization(file_list, args.output, args.max_files)
-        print(f"Visualization complete. Video saved to: {video_path}")
+        if video_path:
+            print(f"Visualization complete. Video saved to: {video_path}")
+            return 0
+        else:
+            print("Visualization failed.")
+            return 1
     else:
         print("No files found to visualize.")
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
