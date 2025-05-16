@@ -3,7 +3,8 @@
 3D File Visualizer
 
 This script recursively traverses a directory structure and converts files into
-a flowing 3D visualization saved as a video.
+a flowing 3D visualization saved as a video. You can also add an MP3 audio file
+to be synchronized with the animation.
 
 First-time users must run setup.py before using this script to install all required dependencies.
 
@@ -16,6 +17,8 @@ Version: 0.1.0
 import os
 import sys
 import argparse
+import subprocess
+import tempfile
 
 # Only import these modules after setup.py has been run to install them
 try:
@@ -26,6 +29,7 @@ try:
     import imageio  # noqa: F401 - Required for matplotlib's FFMpegWriter
     from PIL import Image
     import scipy.ndimage as ndimage
+    from moviepy.editor import VideoFileClip, AudioFileClip
 except ImportError as e:
     print(f"Error importing modules: {e}")
     print("Please run setup.py first to install all required dependencies:")
@@ -108,7 +112,9 @@ def scan_directory(directory):
     return all_files
 
 
-def create_3d_visualization(file_list, output_video="file_visualization.mp4", max_files=100):
+def create_3d_visualization(
+    file_list, output_video="file_visualization.mp4", max_files=100, audio_file=None, fps=15, duration=None
+):
     """
     Create a 3D visualization of the files and save as video.
 
@@ -116,6 +122,9 @@ def create_3d_visualization(file_list, output_video="file_visualization.mp4", ma
         file_list (list): List of file paths to visualize
         output_video (str): Path for the output video file
         max_files (int): Maximum number of files to process
+        audio_file (str, optional): Path to MP3 audio file to synchronize with the animation
+        fps (int): Frames per second for the video output
+        duration (float, optional): Duration to match video with audio (in seconds)
 
     Returns:
         str: Path to the created video file
@@ -124,6 +133,30 @@ def create_3d_visualization(file_list, output_video="file_visualization.mp4", ma
     if len(file_list) > max_files:
         print(f"Limiting to {max_files} files out of {len(file_list)}")
         file_list = file_list[:max_files]
+
+    # Determine duration if audio file is provided
+    audio_duration = None
+    if audio_file:
+        try:
+            print(f"Reading audio file: {audio_file}")
+            audio_clip = AudioFileClip(audio_file)
+            audio_duration = audio_clip.duration
+            audio_clip.close()
+
+            if duration is None:
+                duration = audio_duration
+                print(f"Setting animation duration to match audio: {duration:.2f} seconds")
+            else:
+                print(f"Using specified duration: {duration:.2f} seconds (audio is {audio_duration:.2f} seconds)")
+        except Exception as e:
+            print(f"Warning: Could not read audio file: {e}")
+            audio_file = None
+
+    # If duration is not set from audio, estimate it based on number of files
+    if duration is None:
+        # Default to about 10 seconds for small collections, up to 60 seconds for larger ones
+        duration = min(10 + (len(file_list) / 10), 60)
+        print(f"Setting animation duration to {duration:.2f} seconds")
 
     # Create figure and 3D axis
     fig = plt.figure(figsize=(10, 8))
@@ -154,17 +187,26 @@ def create_3d_visualization(file_list, output_video="file_visualization.mp4", ma
     ax.set_ylim(0, max_y)
     ax.set_zlim(0, max_z_height)
 
+    # Calculate the number of frames based on duration and fps
+    num_frames = int(duration * fps)
+
     # Function to update the plot for each frame
     def update_plot(frame_num, data_matrices, plot):
         ax.clear()
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         ax.set_zlabel("Data Value")
-        ax.set_title(f"3D Visualization of Files - Frame {frame_num+1}/{len(data_matrices)}")
+        ax.set_title(f"3D Visualization of Files - Frame {frame_num+1}/{num_frames}")
+
+        # Calculate which file to display based on frame number and total duration
+        # This ensures we spread the files evenly across the animation duration
+        file_idx = min(int((frame_num / num_frames) * len(data_matrices)), len(data_matrices) - 1)
 
         # Take a slice of the data matrices to create a flowing effect
-        start_idx = max(0, frame_num - 5)
-        end_idx = min(len(data_matrices), frame_num + 1)
+        # Show more files at once for a richer visualization
+        window_size = min(6, len(data_matrices))
+        start_idx = max(0, file_idx - (window_size - 1))
+        end_idx = min(len(data_matrices), start_idx + window_size)
 
         # Plot each matrix with an offset in the z-direction
         for i, idx in enumerate(range(start_idx, end_idx)):
@@ -187,20 +229,82 @@ def create_3d_visualization(file_list, output_video="file_visualization.mp4", ma
         ax.set_zlim(0, max_z_height)
 
         # Rotate view angle for dynamic effect
-        ax.view_init(elev=30, azim=frame_num % 360)
+        ax.view_init(elev=30, azim=(frame_num * 2) % 360)
 
         return [surf]
 
     # Create animation
-    print("Generating animation...")
+    print(f"Generating animation with {num_frames} frames at {fps} fps...")
     anim = animation.FuncAnimation(
-        fig, update_plot, frames=len(data_matrices), fargs=(data_matrices, ax), interval=200, blit=False
+        fig,
+        update_plot,
+        frames=num_frames,
+        fargs=(data_matrices, ax),
+        interval=1000 / fps,  # Interval in milliseconds
+        blit=False,
     )
 
-    # Save as video
+    # If audio is provided, we need to save to a temp file first, then combine with audio
+    if audio_file:
+        temp_video = None
+        final_output = output_video
+        try:
+            # Create temporary file for the silent video
+            with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as temp:
+                temp_video = temp.name
+
+            # Save the animation without audio
+            print("Saving animation to temporary file...")
+            writer = animation.FFMpegWriter(fps=fps, bitrate=5000)
+            anim.save(temp_video, writer=writer)
+
+            # Close the matplotlib figure
+            plt.close(fig)
+
+            # Combine video with audio
+            print(f"Adding audio from {audio_file}...")
+            video_clip = VideoFileClip(temp_video)
+            audio_clip = AudioFileClip(audio_file)
+
+            # Adjust audio duration if needed
+            if audio_clip.duration != video_clip.duration:
+                if audio_clip.duration > video_clip.duration:
+                    print(f"Trimming audio to match video duration ({video_clip.duration:.2f}s)")
+                    audio_clip = audio_clip.subclip(0, video_clip.duration)
+                else:
+                    print(f"Audio shorter than video. Audio will end at {audio_clip.duration:.2f}s")
+
+            # Set the audio for the video clip
+            final_clip = video_clip.set_audio(audio_clip)
+
+            # Write the final video with audio
+            print(f"Saving final video with audio to {final_output}...")
+            final_clip.write_videofile(final_output, codec="libx264", audio_codec="aac")
+
+            # Close the clips
+            video_clip.close()
+            audio_clip.close()
+            final_clip.close()
+
+            # Remove the temporary file
+            os.unlink(temp_video)
+
+            print(f"Video with audio saved successfully to {final_output}")
+            return final_output
+
+        except Exception as e:
+            print(f"Error adding audio to video: {e}")
+            print("Falling back to saving video without audio...")
+            if temp_video and os.path.exists(temp_video):
+                try:
+                    os.unlink(temp_video)
+                except OSError as temp_err:
+                    print(f"Warning: Could not remove temporary file {temp_video}: {temp_err}")
+
+    # Save as video without audio (or if audio processing failed)
     print(f"Saving animation to {output_video}...")
     try:
-        writer = animation.FFMpegWriter(fps=15, bitrate=5000)
+        writer = animation.FFMpegWriter(fps=fps, bitrate=5000)
         anim.save(output_video, writer=writer)
         print(f"Video saved successfully to {output_video}")
     except Exception as e:
@@ -210,6 +314,44 @@ def create_3d_visualization(file_list, output_video="file_visualization.mp4", ma
 
     plt.close(fig)
     return output_video
+
+
+def validate_audio_file(audio_path):
+    """
+    Validate that the audio file exists and has a supported format.
+
+    Args:
+        audio_path (str): Path to the audio file
+
+    Returns:
+        bool: True if the file is valid, False otherwise
+    """
+    if not audio_path:
+        return False
+
+    if not os.path.isfile(audio_path):
+        print(f"Error: Audio file not found: {audio_path}")
+        return False
+
+    # Check file extension
+    _, ext = os.path.splitext(audio_path)
+    ext = ext.lower()
+
+    if ext not in [".mp3", ".wav", ".ogg", ".aac", ".m4a"]:
+        print(f"Error: Unsupported audio format: {ext}")
+        print("Supported formats: .mp3, .wav, .ogg, .aac, .m4a")
+        return False
+
+    # Try to read the file with moviepy to verify it's valid
+    try:
+        audio = AudioFileClip(audio_path)
+        duration = audio.duration
+        audio.close()
+        print(f"Audio file validated: {os.path.basename(audio_path)} ({duration:.2f} seconds)")
+        return True
+    except Exception as e:
+        print(f"Error: Could not read audio file: {e}")
+        return False
 
 
 def main():
@@ -225,6 +367,16 @@ def main():
     parser.add_argument("directory", type=str, help="Directory to scan recursively")
     parser.add_argument("--output", type=str, default="file_visualization.mp4", help="Output video filename")
     parser.add_argument("--max-files", type=int, default=100, help="Maximum number of files to process")
+    parser.add_argument(
+        "--audio", type=str, default=None, help="Path to MP3 audio file to synchronize with the animation"
+    )
+    parser.add_argument(
+        "--duration",
+        type=float,
+        default=None,
+        help="Duration of the animation in seconds (default: based on audio or files)",
+    )
+    parser.add_argument("--fps", type=int, default=15, help="Frames per second for the video output")
 
     args = parser.parse_args()
 
@@ -233,12 +385,23 @@ def main():
         print(f"Error: {args.directory} is not a valid directory")
         return 1
 
+    # Validate audio file if provided
+    audio_file = None
+    if args.audio:
+        if validate_audio_file(args.audio):
+            audio_file = args.audio
+        else:
+            print("Warning: Invalid audio file - proceeding without audio")
+
     # Scan directory and get files
     file_list = scan_directory(args.directory)
 
     # Create visualization
     if file_list:
-        video_path = create_3d_visualization(file_list, args.output, args.max_files)
+        video_path = create_3d_visualization(
+            file_list, args.output, args.max_files, audio_file=audio_file, fps=args.fps, duration=args.duration
+        )
+
         if video_path:
             print(f"Visualization complete. Video saved to: {video_path}")
             return 0
@@ -258,8 +421,6 @@ if __name__ == "__main__":
 
     # Check if FFmpeg is available
     try:
-        import subprocess
-
         subprocess.run(["ffmpeg", "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
     except (subprocess.SubprocessError, FileNotFoundError):
         print("ERROR: FFmpeg is not installed or not in your PATH.")
