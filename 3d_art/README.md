@@ -8,7 +8,20 @@ Copyright © 2025 Eric Gitonga - May 16, 2025
 
 This tool takes a directory as input, scans it recursively for all files, and creates a 3D visualization where each file becomes a surface plot in a flowing animation. The result is saved as an MP4 video.
 
-## Quick Start
+## Installation
+
+For first-time users, you **must run the setup script first** to install all required dependencies:
+
+```bash
+# Install required dependencies
+python setup.py
+```
+
+This will check for and install all required Python packages and verify that FFmpeg is installed.
+
+## Usage
+
+After running setup.py, you can use the main script:
 
 ```bash
 # Run the script on a directory
@@ -23,7 +36,7 @@ python 3d_art.py /path/to/your/directory --max-files 50
 
 ## Troubleshooting
 
-- **Missing modules**: The script automatically installs required dependencies. If it fails, install them manually: `pip install numpy matplotlib imageio Pillow scipy`
+- **Setup failed**: If setup.py reports missing dependencies, try installing them manually: `pip install numpy matplotlib imageio Pillow scipy`
 
 - **FFmpeg not found**: Install FFmpeg from https://ffmpeg.org/download.html or via your system's package manager.
 
@@ -35,7 +48,6 @@ For more detailed information, see:
 
 - `technical_docs.md` - Full technical documentation
 - `usage_guide.md` - Detailed usage examples and configurations
-- `setup.py` - Installation and packaging information
 
 ## License
 

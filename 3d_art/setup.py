@@ -5,6 +5,8 @@
 This script installs all required dependencies for the 3D File Visualizer.
 It checks for the presence of required packages and installs or upgrades them as needed.
 
+First-time users must run this script before running 3d_art.py.
+
 Usage:
     python setup.py install
 
@@ -15,6 +17,10 @@ Dependencies:
     - Pillow (>=8.0.0)
     - scipy (>=1.5.0)
     - FFmpeg (external dependency, must be installed separately)
+
+Author: Eric Gitonga
+Copyright: 2025 Eric Gitonga - May 16, 2025
+License: MIT
 """
 
 from setuptools import setup, find_packages
@@ -119,11 +125,18 @@ def check_and_install_dependencies():
 
 # Run the dependency check and installation when this script is executed directly
 if __name__ == "__main__":
+    print("3D File Visualizer - Setup")
+    print("==========================")
+    print("This script will install all required dependencies for the 3D File Visualizer.")
+    print("Copyright © 2025 Eric Gitonga - May 16, 2025")
+    print()
+
     success = check_and_install_dependencies()
     if success:
-        print("All dependencies are ready! You can now run 3d_art.py")
+        print("\nSetup complete! All dependencies are installed.")
+        print("You can now run the 3D File Visualizer with: python 3d_art.py /path/to/directory")
     else:
-        print("Some dependencies could not be installed. Please review the errors above.")
+        print("\nSetup incomplete. Please install missing dependencies manually.")
         sys.exit(1)
 
 # Setup configuration for packaging
@@ -135,7 +148,7 @@ setup(
     description="A tool to visualize files in a directory as 3D animations",
     long_description=open("README.md").read() if __name__ != "__main__" else "",
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/3d_file_visualizer",
+    url="https://github.com/ericgitonga/3d_file_visualizer",
     packages=find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",

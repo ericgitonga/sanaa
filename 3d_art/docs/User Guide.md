@@ -7,11 +7,11 @@ Copyright © 2025 Eric Gitonga - May 16, 2025
 ```
 3d_file_visualizer/
 ├── 3d_art.py           # Main script for file visualization
-├── dependencies.py     # Dependency management module
-├── setup.py            # Installation and packaging script
+├── setup.py            # Setup and dependency installation script
 ├── README.md           # Project documentation
 └── docs/
     └── technical_docs.md  # Technical documentation
+    └── usage_guide.md     # This file
 ```
 
 # Installation Guide
@@ -21,73 +21,34 @@ Copyright © 2025 Eric Gitonga - May 16, 2025
 - Python 3.6 or higher
 - FFmpeg (for video encoding)
 
-## Installation Methods
+## First-Time Installation
 
-### Method 1: Direct Use
+Before using the 3D File Visualizer, you **must run the setup script** to install all required dependencies:
 
-1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/3d_file_visualizer.git
-cd 3d_file_visualizer
+python setup.py
 ```
 
-2. Run the script:
-```bash
-python 3d_art.py /path/to/visualize
-```
+This will:
+1. Check for and install all required Python packages (numpy, matplotlib, imageio, Pillow, scipy)
+2. Verify that FFmpeg is installed and available
+3. Provide instructions if any dependencies are missing
 
-The script will automatically check for and install required Python dependencies.
+If the setup fails due to missing FFmpeg, install it based on your operating system:
 
-### Method 2: Using pip
-
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/3d_file_visualizer.git
-cd 3d_file_visualizer
-```
-
-2. Install using pip:
-```bash
-pip install -e .
-```
-
-3. Run the installed command:
-```bash
-3d-visualizer /path/to/visualize
-```
-
-### Method 3: Install FFmpeg
-
-The script requires FFmpeg for video encoding. Install it based on your operating system:
-
-#### Ubuntu/Debian:
-```bash
-sudo apt-get install ffmpeg
-```
-
-#### macOS (with Homebrew):
-```bash
-brew install ffmpeg
-```
-
-#### Windows:
-Download from [FFmpeg's official site](https://ffmpeg.org/download.html#build-windows) and add it to your PATH.
+- **Ubuntu/Debian**: `sudo apt-get install ffmpeg`
+- **macOS (with Homebrew)**: `brew install ffmpeg`
+- **Windows**: Download from [FFmpeg's official site](https://ffmpeg.org/download.html#build-windows) and add it to your PATH
 
 ## Verification
 
-To verify the installation:
+To verify that everything is installed correctly, run:
 
-1. Run the dependency check:
 ```bash
-python dependencies.py
+python 3d_art.py --help
 ```
 
-2. Run a test visualization with a small directory:
-```bash
-python 3d_art.py /path/to/small/directory --max-files 10
-```
-
-You should see a file_visualization.mp4 file created in your current directory.
+You should see the help message with available command-line options.
 
 # Usage Examples
 
@@ -134,17 +95,20 @@ python 3d_art.py /path/to/documents --output docs_visualization.mp4
 
 ## Common Issues and Solutions
 
-### "ModuleNotFoundError: No module named 'X'"
-The automatic dependency installation failed. Try manually installing:
+### "Please run setup.py first"
+You haven't run the setup script. Run `python setup.py` to install all dependencies.
+
+### "Error importing modules"
+The required Python packages weren't properly installed. Try running `python setup.py` again, or install them manually:
 ```bash
 pip install numpy matplotlib imageio Pillow scipy
 ```
 
-### "FFmpeg not found"
-FFmpeg is not installed or not in your PATH. Install FFmpeg and ensure it's accessible from the command line.
+### "FFmpeg is not installed or not in your PATH"
+FFmpeg is missing or not accessible. Install FFmpeg and ensure it's in your system PATH.
 
 ### "Error saving video"
-Check that FFmpeg is properly installed and in your PATH. Try running:
+Check that FFmpeg is properly installed and accessible by running:
 ```bash
 ffmpeg -version
 ```

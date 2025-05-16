@@ -5,6 +5,8 @@
 This script recursively traverses a directory structure and converts files into
 a flowing 3D visualization saved as a video.
 
+First-time users must run setup.py before using this script to install all required dependencies.
+
 Author: Eric Gitonga
 Copyright: 2025 Eric Gitonga - May 16, 2025
 License: MIT
@@ -15,29 +17,7 @@ import os
 import sys
 import argparse
 
-# First, make sure dependencies are available
-print("Checking dependencies before running...")
-try:
-    from dependencies import check_and_install_dependencies
-
-    check_and_install_dependencies()
-except ImportError:
-    # If dependencies.py is not in the path, try to import it directly
-    try:
-        import importlib.util
-
-        spec = importlib.util.spec_from_file_location(
-            "dependencies", os.path.join(os.path.dirname(__file__), "dependencies.py")
-        )
-        dependencies = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(dependencies)
-        dependencies.check_and_install_dependencies()
-    except Exception as e:
-        print(f"Error importing dependencies module: {e}")
-        print("Please ensure dependencies.py is available in the same directory.")
-        sys.exit(1)
-
-# Only import these modules after ensuring they're installed
+# Only import these modules after setup.py has been run to install them
 try:
     import numpy as np
     import matplotlib.pyplot as plt
@@ -48,8 +28,8 @@ try:
     import scipy.ndimage as ndimage
 except ImportError as e:
     print(f"Error importing modules: {e}")
-    print("Something went wrong with the dependency installation. Please try installing manually:")
-    print("pip install numpy matplotlib imageio Pillow scipy")
+    print("Please run setup.py first to install all required dependencies:")
+    print("    python setup.py")
     sys.exit(1)
 
 
@@ -271,4 +251,20 @@ def main():
 
 
 if __name__ == "__main__":
+    print("3D File Visualizer")
+    print("==================")
+    print("Copyright © 2025 Eric Gitonga - May 16, 2025")
+    print()
+
+    # Check if FFmpeg is available
+    try:
+        import subprocess
+
+        subprocess.run(["ffmpeg", "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+    except (subprocess.SubprocessError, FileNotFoundError):
+        print("ERROR: FFmpeg is not installed or not in your PATH.")
+        print("Please run setup.py first to check all dependencies:")
+        print("    python setup.py")
+        sys.exit(1)
+
     sys.exit(main())

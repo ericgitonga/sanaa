@@ -4,9 +4,9 @@ Copyright © 2025 Eric Gitonga - May 16, 2025
 
 ## Architecture
 
-The 3D File Visualizer is structured around these main components:
+The 3D File Visualizer project is structured around these main components:
 
-1. **Dependency Management**: Ensures all required libraries are installed
+1. **Setup and Dependencies**: Handled by setup.py
 2. **Directory Scanning**: Recursively finds files to visualize
 3. **Data Processing**: Converts files to numerical matrices
 4. **Visualization Generation**: Creates 3D representations
@@ -14,9 +14,9 @@ The 3D File Visualizer is structured around these main components:
 
 ## Component Details
 
-### Dependency Management
+### Setup and Dependencies
 
-The dependency management system uses Python's `pkg_resources` and `subprocess` modules to:
+The dependency management system has been moved to setup.py, which uses Python's `pkg_resources` and `subprocess` modules to:
 - Check for required packages and their versions
 - Install missing packages using pip
 - Upgrade outdated packages to required versions
@@ -37,7 +37,7 @@ def check_and_install_dependencies():
     # ... installation logic ...
 ```
 
-The function is executed at script startup, before any module imports, to ensure all dependencies are available.
+First-time users must run setup.py before using 3d_art.py to ensure all dependencies are installed.
 
 ### Directory Scanning
 
