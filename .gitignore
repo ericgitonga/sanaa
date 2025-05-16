@@ -3,3 +3,9 @@ temp/
 part*
 *.svg
 data/
+*.blend*
+*.avi
+*.mp4
+*.mp3
+*.log
+*.txt
