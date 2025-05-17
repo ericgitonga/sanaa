@@ -216,6 +216,22 @@ The required Python packages weren't properly installed. Try running `python set
 pip install numpy matplotlib imageio Pillow scipy moviepy
 ```
 
+#### "MoviePy import failed"
+This is a known issue, especially in Anaconda/Conda environments. Try one of these solutions:
+
+**For Anaconda/Conda environments:**
+```bash
+conda install -c conda-forge moviepy ffmpeg decorator imageio-ffmpeg
+```
+
+**For standard Python environments:**
+```bash
+pip install moviepy --upgrade --force-reinstall
+pip install decorator>=4.0.2 imageio-ffmpeg>=0.4.4
+```
+
+Note: Even if MoviePy cannot be installed properly, the tool will still work without audio features.
+
 #### "FFmpeg is not installed or not in your PATH"
 FFmpeg is missing or not accessible. Install FFmpeg and ensure it's in your system PATH.
 
