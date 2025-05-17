@@ -29,7 +29,53 @@ try:
     import imageio  # noqa: F401 - Required for matplotlib's FFMpegWriter
     from PIL import Image
     import scipy.ndimage as ndimage
-    from moviepy.editor import VideoFileClip, AudioFileClip
+
+    # Try importing MoviePy components - prioritize direct imports for Anaconda compatibility
+    try:
+        # For Anaconda environments, direct imports often work better than the .editor module
+        # Try direct imports first (which we know are working from the setup script)
+        try:
+            from moviepy.video.io.VideoFileClip import VideoFileClip
+            from moviepy.audio.io.AudioFileClip import AudioFileClip
+
+            print("Using direct MoviePy component imports")
+            moviepy_available = True
+        except ImportError as core_err:
+            # If direct imports fail, try the standard editor module
+            try:
+                from moviepy.editor import VideoFileClip, AudioFileClip
+
+                print("Using moviepy.editor imports")
+                moviepy_available = True
+            except ImportError as editor_err:
+                raise ImportError(f"Failed to import MoviePy components: {core_err} and {editor_err}")
+    except ImportError as moviepy_err:
+        print(f"Warning: MoviePy import failed: {moviepy_err}")
+        print("Audio synchronization features will be disabled.")
+        print("For Anaconda/Conda environments, try:")
+        print("    conda install -c conda-forge moviepy ffmpeg decorator imageio-ffmpeg")
+        print("For standard Python environments, try:")
+        print("    pip install moviepy --upgrade --force-reinstall")
+        moviepy_available = False
+
+        class DummyClip:
+            def __init__(self, *args, **kwargs):
+                self.duration = 0
+
+            def close(self):
+                pass
+
+            def subclip(self, *args):
+                return self
+
+            def set_audio(self, *args):
+                return self
+
+            def write_videofile(self, *args, **kwargs):
+                print("Error: MoviePy not available - cannot create video with audio.")
+                return None
+
+        VideoFileClip = AudioFileClip = DummyClip
 except ImportError as e:
     print(f"Error importing modules: {e}")
     print("Please run setup.py first to install all required dependencies:")
@@ -245,7 +291,7 @@ def create_3d_visualization(
     )
 
     # If audio is provided, we need to save to a temp file first, then combine with audio
-    if audio_file:
+    if audio_file and moviepy_available:
         temp_video = None
         final_output = output_video
         try:
@@ -342,15 +388,20 @@ def validate_audio_file(audio_path):
         print("Supported formats: .mp3, .wav, .ogg, .aac, .m4a")
         return False
 
-    # Try to read the file with moviepy to verify it's valid
-    try:
-        audio = AudioFileClip(audio_path)
-        duration = audio.duration
-        audio.close()
-        print(f"Audio file validated: {os.path.basename(audio_path)} ({duration:.2f} seconds)")
-        return True
-    except Exception as e:
-        print(f"Error: Could not read audio file: {e}")
+    # Only try to read the file with moviepy if it's available
+    if moviepy_available:
+        try:
+            audio = AudioFileClip(audio_path)
+            duration = audio.duration
+            audio.close()
+            print(f"Audio file validated: {os.path.basename(audio_path)} ({duration:.2f} seconds)")
+            return True
+        except Exception as e:
+            print(f"Error: Could not read audio file: {e}")
+            return False
+    else:
+        print("Audio file found but MoviePy is not available for processing.")
+        print("Audio synchronization will be disabled.")
         return False
 
 
