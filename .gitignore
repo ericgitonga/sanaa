@@ -9,3 +9,4 @@ data/
 *.mp3
 *.log
 *.txt
+__pycache__/
